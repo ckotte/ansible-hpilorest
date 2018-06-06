@@ -41,10 +41,12 @@ options:
     description:
     - The first NTP server IP or address to be configured.
     required: true
+    choices=['DHCP', '<IPv4 address>']
   ntp_server_2:
     description:
     - The second NTP server IP or address to be configured.
     required: true
+    choices=['DHCP', '<IPv4 address>']
 requirements:
 - python-ilorest-library
 - python >= 2.7.9
@@ -78,6 +80,27 @@ def check_datetime(module, restobj, timezone, ntp_server_1, ntp_server_2, bios_p
     pending_reset = False
     changed_status = False
 
+    instances = restobj.search_for_type(module, "EthernetNetworkInterface.")
+    for instance in instances:
+        # Dedicated Network Port
+        if instance["href"] == '/rest/v1/Managers/1/EthernetInterfaces/1':
+            nic1 = restobj.rest_get(instance["href"])
+            if (ntp_server_1 == "DHCP" and ntp_server_2 == "DHCP"):
+                if nic1.dict['Oem']['Hp']['DHCPv4']['UseNTPServers'] is not True:
+                    would_be_changed.append('DHCPv4-NTPServers')
+                    changed_status = True
+            else:
+                if (ntp_server_1 != "DHCP" and ntp_server_2 != "DHCP"):
+                    if nic1.dict['Oem']['Hp']['DHCPv4']['UseNTPServers'] is not False:
+                        would_be_changed.append('DHCPv4-NTPServers')
+                        changed_status = True
+                else:
+                    module.fail_json(msg="Both ntp_server_1 and ntp_server_2 need to be set to an IPv4 address!")
+            # check if iLO reset is pending
+            if nic1.dict['Oem']['Hp']['ConfigurationSettings'] == 'SomePendingReset':
+                pending_reset = True
+            break
+
     instances = restobj.search_for_type(module, "HpiLODateTime.")
     for instance in instances:
         # instance["href"]: /rest/v1/Managers/1/DateTime
@@ -90,12 +113,13 @@ def check_datetime(module, restobj, timezone, ntp_server_1, ntp_server_2, bios_p
             would_be_changed.append('TimeZone')
             changed_status = True
         # NTP servers
-        if ((date_time.dict['NTPServers'][0] == ntp_server_1) and (date_time.dict['NTPServers'][1] == ntp_server_2)):
-            if date_time.dict['ConfigurationSettings'] == 'SomePendingReset':
-                pending_reset = True
-        else:
-            would_be_changed.append('NTPServers')
-            changed_status = True
+        if (ntp_server_1 != "DHCP" and ntp_server_2 != "DHCP"):
+            if ((date_time.dict['NTPServers'][0] == ntp_server_1) and (date_time.dict['NTPServers'][1] == ntp_server_2)):
+                if date_time.dict['ConfigurationSettings'] == 'SomePendingReset':
+                    pending_reset = True
+            else:
+                would_be_changed.append('IPv4-NTPServers')
+                changed_status = True
 
     if changed_status:
         if len(would_be_changed) > 2:
