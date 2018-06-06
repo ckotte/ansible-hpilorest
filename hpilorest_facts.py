@@ -137,6 +137,11 @@ hw_ethX:
     sample:
       - macaddress: 00:11:22:33:44:55
         macaddress_dash: 00-11-22-33-44-55
+hw_hostname:
+    description: Hostname set in the Operating System
+    returned: always
+    type: string
+    sample: hostname.example.com
 hw_ilo_firmware_version:
     description: iLO firmware version (string)
     returned: always
@@ -187,6 +192,7 @@ def gather_server_facts(module, restobj):
                 'macaddress': mac_address,
                 'macaddress_dash': mac_address.replace(':', '-')
             }
+        facts['hw_hostname'] = system.dict['HostName'].strip()
 
     instances = restobj.search_for_type(module, "Manager.")
 
