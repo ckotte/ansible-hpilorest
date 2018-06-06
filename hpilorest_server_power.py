@@ -121,6 +121,7 @@ def main():
             password=dict(default='admin', type='str', no_log=True),
             action=dict(default='ForceSystemReset', choices=['GracefulPowerOff', 'ForcePowerOff', 'ForceSystemReset', 'ColdBoot'])
         ),
+        supports_check_mode=True
     )
 
     ilo_hostname = module.params['host']
@@ -132,6 +133,9 @@ def main():
 
     # # Create a REST object
     REST_OBJ = RestObject(module, ilo_url, ilo_login, ilo_password)
+
+    if module.check_mode:
+        module.exit_json(changed=True, msg="Server power state would be changed (" + action + ")")
 
     server_power(module, REST_OBJ, action)
 
