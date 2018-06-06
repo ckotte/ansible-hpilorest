@@ -166,20 +166,20 @@ def gather_server_facts(module, restobj):
         if system.status != 200:
             message = restobj.message_handler(module, system)
             module.fail_json(msg='Return code %s: %s' % (system.status, message))
-        facts['hw_bios_version'] = system.dict['Oem']['Hp']['Bios']['Current']['VersionString']
-        facts['hw_bios_date'] = system.dict['Oem']['Hp']['Bios']['Current']['Date']
-        facts['hw_manufacturer'] = system.dict['Manufacturer']
-        facts['hw_model'] = system.dict['Model']
-        facts['hw_processor_model'] = system.dict['ProcessorSummary']['Model']
+        facts['hw_bios_version'] = system.dict['Oem']['Hp']['Bios']['Current']['VersionString'].strip()
+        facts['hw_bios_date'] = system.dict['Oem']['Hp']['Bios']['Current']['Date'].strip()
+        facts['hw_manufacturer'] = system.dict['Manufacturer'].strip()
+        facts['hw_model'] = system.dict['Model'].strip()
+        facts['hw_processor_model'] = system.dict['ProcessorSummary']['Model'].strip()
         facts['hw_processor_count'] = system.dict['ProcessorSummary']['Count']
         facts['hw_memory'] = system.dict['MemorySummary']['TotalSystemMemoryGiB']
-        facts['hw_uuid'] = system.dict['UUID']
-        facts['hw_serial_number'] = system.dict['SerialNumber']
-        facts['hw_sku'] = system.dict['SKU']
-        facts['hw_asset_tag'] = system.dict['AssetTag']
-        facts['hw_power_state'] = system.dict['PowerState']
-        facts['hw_post_state'] = system.dict['Oem']['Hp']['PostState']
-        facts['hw_health'] = system.dict['Status']['Health']
+        facts['hw_uuid'] = system.dict['UUID'].strip()
+        facts['hw_serial_number'] = system.dict['SerialNumber'].strip()
+        facts['hw_sku'] = system.dict['SKU'].strip()
+        facts['hw_asset_tag'] = system.dict['AssetTag'].strip()
+        facts['hw_power_state'] = system.dict['PowerState'].strip()
+        facts['hw_post_state'] = system.dict['Oem']['Hp']['PostState'].strip()
+        facts['hw_health'] = system.dict['Status']['Health'].strip()
         # MAC addresses
         for i, mac_address in enumerate(system.dict['HostCorrelation']['HostMACAddress']):
             factname = 'hw_eth' + str(i)
@@ -196,12 +196,12 @@ def gather_server_facts(module, restobj):
         if manager.status != 200:
             message = restobj.message_handler(module, manager)
             module.fail_json(msg='Return code %s: %s' % (manager.status, message))
-        facts['hw_ilo_firmware_version'] = manager.dict['Oem']['Hp']['Firmware']['Current']['VersionString']
+        facts['hw_ilo_firmware_version'] = manager.dict['Oem']['Hp']['Firmware']['Current']['VersionString'].strip()
         facts['hw_ilo_firmware_version_number'] = int(
             str(manager.dict['Oem']['Hp']['Firmware']['Current']['MajorVersion']) +
             str(manager.dict['Oem']['Hp']['Firmware']['Current']['MinorVersion'])
             )    # e.g. 250
-        facts['hw_ilo_firmware_date'] = manager.dict['Oem']['Hp']['Firmware']['Current']['Date']
+        facts['hw_ilo_firmware_date'] = manager.dict['Oem']['Hp']['Firmware']['Current']['Date'].strip()
 
     module.exit_json(ansible_facts=facts)
 
