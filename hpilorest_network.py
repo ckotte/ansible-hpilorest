@@ -36,16 +36,24 @@ options:
   hostname:
     description:
     - The hostname to be configured.
+    required: true
+    sample: testhost
   domain:
     description:
     - The domain name to be configured.
     - DHCPv6 will be disabled. Otherwise, domain name can't be set.
+    required: true
+    sample: example.com
   dns_server_1:
     description:
     - The first DNS server IP or address to be configured.
+    required: true
+    sample: 192.168.1.3
   dns_server_2:
     description:
     - The second DNS server IP or address to be configured.
+    required: true
+    sample: 192.168.1.4
 requirements:
 - python-ilorest-library
 - python >= 2.7.9
