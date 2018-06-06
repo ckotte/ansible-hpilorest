@@ -62,10 +62,41 @@ RETURN = '''
 '''
 
 
+def check_mount_iso(module, restobj, iso_url, boot_on_next_server_reset, state, bios_password=None):
+    """Inform the user what would change if the module were run"""
+    instances = restobj.search_for_type(module, "Manager.")
+    for instance in instances:
+        # instance["href"]: /rest/v1/Managers/1
+        manager = restobj.rest_get(instance["href"])
+        # manager.dict[...]: /rest/v1/Managers/1/VirtualMedia
+        virtual_media = restobj.rest_get(manager.dict["links"]["VirtualMedia"]["href"])
+        # vmlink: /rest/v1/Managers/1/VirtualMedia/1 ("MediaTypes": ["Floppy","USBStick"])
+        # vmlink: /rest/v1/Managers/1/VirtualMedia/2 ("MediaTypes": ["CD","DVD"])
+        for vmlink in virtual_media.dict["links"]["Member"]:
+            instance = restobj.rest_get(vmlink["href"])
+            message = restobj.message_handler(module, instance)
+            if "DVD" in instance.dict["MediaTypes"]:
+                if state == 'present':
+                    if instance.dict["Image"] == iso_url:
+                        changed_status = False
+                        message = "ISO already mounted"
+                    else:
+                        changed_status = True
+                        message = "ISO would be mounted"
+                    module.exit_json(changed=changed_status, msg=message)
+                else:
+                    if instance.dict["Image"]:
+                        changed_status = True
+                        message = "ISO would be ejected"
+                    else:
+                        changed_status = False
+                        message = "No ISO mounted"
+                    module.exit_json(changed=changed_status, msg=message)
+
+
 def mount_iso(module, restobj, iso_url, boot_on_next_server_reset, state, bios_password=None):
     """Mount ISO"""
     instances = restobj.search_for_type(module, "Manager.")
-
     for instance in instances:
         # instance["href"]: /rest/v1/Managers/1
         manager = restobj.rest_get(instance["href"])
@@ -118,6 +149,7 @@ def main():
             boot_on_next_server_reset=dict(default=True, type='bool'),
             state=dict(default='present', choices=['present', 'absent'])
         ),
+        supports_check_mode=True
     )
 
     ilo_hostname = module.params['host']
@@ -131,6 +163,9 @@ def main():
 
     # # Create a REST object
     REST_OBJ = RestObject(module, ilo_url, ilo_login, ilo_password)
+
+    if module.check_mode:
+        check_mount_iso(module, REST_OBJ, iso_url, boot_on_next_server_reset, state)
 
     mount_iso(module, REST_OBJ, iso_url, boot_on_next_server_reset, state)
 
