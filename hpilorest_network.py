@@ -18,7 +18,7 @@ version_added: "n/a"
 author: Christian Kotte (@ckotte)
 short_description: Configure HPE iLO network settings.
 description:
-- This module configures HPE iLO network settings.
+- This module configures network settings of the dedicated network interface only.
 - This module requires python-ilorest-library python module.
 options:
   host:
