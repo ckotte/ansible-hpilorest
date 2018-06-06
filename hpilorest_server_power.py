@@ -105,7 +105,7 @@ def server_power(module, restobj, action, bios_password=None):
             response = restobj.rest_post(instance["href"], body)
             message = restobj.message_handler(module, response)
             if response.status == 200:
-                module.exit_json(changed=True, msg="Server reset: %s" % message)
+                module.exit_json(changed=True, msg="Server power state changed: %s" % message)
             else:
                 module.fail_json(msg='Return code %s: %s' % (response.status, message))
         else:
