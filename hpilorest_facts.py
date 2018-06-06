@@ -177,6 +177,26 @@ hw_ilo_firmware_date:
     returned: always
     type: string
     sample: Sep 23 2016
+hw_ilo_ipv4_address:
+    description: Configured IPv4 address
+    returned: always
+    type: string
+    sample: Sep 23 2016
+fhw_ilo_ipv4_subnet_mask:
+    description: Configured Subnet Mask
+    returned: always
+    type: string
+    sample: 255.255.255.0
+hw_ilo_ipv4_gateway:
+    description: Configured Gateway IPv4 Address
+    returned: always
+    type: string
+    sample: 192.168.1.1
+hw_ilo_fqdn:
+    description: iLO FQDN
+    returned: always
+    type: string
+    sample: hostname-ilo.example.com
 '''
 
 
@@ -240,6 +260,24 @@ def gather_server_facts(module, restobj):
             str(manager.dict['Oem']['Hp']['Firmware']['Current']['MinorVersion'])
             )    # e.g. 250
         facts['hw_ilo_firmware_date'] = manager.dict['Oem']['Hp']['Firmware']['Current']['Date'].strip()
+
+    instances = restobj.search_for_type(module, "EthernetNetworkInterface.")
+    for instance in instances:
+        # NIC1: "Dedicated Network Port"
+        if instance["href"] == '/rest/v1/Managers/1/EthernetInterfaces/1':
+            nic1 = restobj.rest_get(instance["href"])
+            facts['hw_ilo_ipv4_address'] = nic1.dict['IPv4Addresses'][0]['Address']
+            facts['hw_ilo_ipv4_subnet_mask'] = nic1.dict['IPv4Addresses'][0]['SubnetMask']
+            facts['hw_ilo_ipv4_gateway'] = nic1.dict['IPv4Addresses'][0]['Gateway']
+
+    instances = restobj.search_for_type(module, "ManagerNetworkService.")
+    for instance in instances:
+        # instance["href"]: /rest/v1/Managers/1/NetworkService
+        network_service = restobj.rest_get(instance["href"])
+        if network_service.status != 200:
+            message = restobj.message_handler(module, network_service)
+            module.fail_json(msg='Return code %s: %s' % (network_service.status, message))
+        facts['hw_ilo_fqdn'] = network_service.dict['FQDN'].strip()
 
     if IsBlade:
         instances = restobj.search_for_type(module, "ServiceRoot.")
