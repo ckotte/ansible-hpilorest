@@ -142,6 +142,26 @@ hw_hostname:
     returned: always
     type: string
     sample: hostname.example.com
+hw_chassis_type:
+    description: Chassis type
+    returned: always
+    type: string
+    sample: Blade, RackMount, etc. pp.
+hw_enclosure:
+    description: Blade enclosure
+    returned: if server is a blade
+    type: string
+    sample: enclosure abc
+hw_bay:
+    description: Blade enclosure location
+    returned: if server is a blade
+    type: string
+    sample: Bay 4
+hw_rack:
+    description: Chassis rack location
+    returned: if server is a blade
+    type: string
+    sample: Rack ABC
 hw_ilo_firmware_version:
     description: iLO firmware version (string)
     returned: always
@@ -163,6 +183,8 @@ hw_ilo_firmware_date:
 def gather_server_facts(module, restobj):
     """Gather server facts"""
     facts = {}
+
+    IsBlade = False
 
     instances = restobj.search_for_type(module, "ComputerSystem.")
     for instance in instances:
@@ -194,8 +216,18 @@ def gather_server_facts(module, restobj):
             }
         facts['hw_hostname'] = system.dict['HostName'].strip()
 
-    instances = restobj.search_for_type(module, "Manager.")
+    instances = restobj.search_for_type(module, "Chassis.")
+    for instance in instances:
+        # instance["href"]: /rest/v1/Chassis/1
+        chassis = restobj.rest_get(instance["href"])
+        if chassis.status != 200:
+            message = restobj.message_handler(module, chassis)
+            module.fail_json(msg='Return code %s: %s' % (chassis.status, message))
+        facts['hw_chassis_type'] = chassis.dict['ChassisType'].strip()
+        if chassis.dict['ChassisType'].strip() == "Blade":
+            IsBlade = True
 
+    instances = restobj.search_for_type(module, "Manager.")
     for instance in instances:
         # instance["href"]: /rest/v1/Managers/1
         manager = restobj.rest_get(instance["href"])
@@ -209,8 +241,19 @@ def gather_server_facts(module, restobj):
             )    # e.g. 250
         facts['hw_ilo_firmware_date'] = manager.dict['Oem']['Hp']['Firmware']['Current']['Date'].strip()
 
-    module.exit_json(ansible_facts=facts)
+    if IsBlade:
+        instances = restobj.search_for_type(module, "ServiceRoot.")
+        for instance in instances:
+            # instance["href"]: /rest/v1/
+            root = restobj.rest_get(instance["href"])
+            if root.status != 200:
+                message = restobj.message_handler(module, root)
+                module.fail_json(msg='Return code %s: %s' % (root.status, message))
+            facts['hw_enclosure'] = root.dict['Oem']['Hp']['Manager'][0]['Blade']['EnclosureName'].strip()
+            facts['hw_rack'] = root.dict['Oem']['Hp']['Manager'][0]['Blade']['RackName'].strip()
+            facts['hw_bay'] = root.dict['Oem']['Hp']['Manager'][0]['Blade']['BayNumber'].strip()
 
+    module.exit_json(ansible_facts=facts)
 
 def main():
     module = AnsibleModule(
