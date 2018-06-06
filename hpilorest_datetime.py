@@ -36,12 +36,15 @@ options:
   timezone:
     description:
     - The time zone to be configured.
+    required: true
   ntp_server_1:
     description:
     - The first NTP server IP or address to be configured.
+    required: true
   ntp_server_2:
     description:
     - The second NTP server IP or address to be configured.
+    required: true
 requirements:
 - python-ilorest-library
 - python >= 2.7.9
