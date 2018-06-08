@@ -418,7 +418,7 @@ def set_network_setting(module, restobj, ipv4, ipv4_address, ipv4_subnet_mask, i
                         response = restobj.rest_patch(instance["href"], body_dhcpv4, optionalpassword=bios_password)
                         message = restobj.message_handler(module, response)
                         if response.status != 200:
-                            module.fail_json(msg="Set DHCPv4. Return code %s: %s" % (response.status, message))
+                            module.fail_json(msg="Enable DHCPv4. Return code %s: %s" % (response.status, message))
                     # Configure DNS servers
                     if not (dns_server_1 == "DHCP" and dns_server_1 == "DHCP"):
                         if (dns_server_1 != "DHCP" and dns_server_1 != "DHCP"):
@@ -533,7 +533,7 @@ def set_network_setting(module, restobj, ipv4, ipv4_address, ipv4_subnet_mask, i
                         response = restobj.rest_patch(instance["href"], body_dhcpv4, optionalpassword=bios_password)
                         message = restobj.message_handler(module, response)
                         if response.status != 200:
-                            module.fail_json(msg="Set DHCPv4. Return code %s: %s" % (response.status, message))
+                            module.fail_json(msg="Disable DHCPv4. Return code %s: %s" % (response.status, message))
                         # Configure IPv4 settings
                         if len(body_ipv4addresses):
                             body_ipv4['IPv4Addresses'] = {[body_ipv4addresses]}
