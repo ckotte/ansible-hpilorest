@@ -305,6 +305,69 @@ def set_network_setting(module, restobj, ipv4, ipv4_address, ipv4_subnet_mask, i
     for instance in instances:
         if instance["href"] == '/rest/v1/Managers/1/EthernetInterfaces/1':
             nic1 = restobj.rest_get(instance["href"])
+            # IPv6
+            if ipv6:
+                module.fail_json(msg="IPv6 isn't fully implemented!")
+            else:
+                # DHCPv6
+                body_dhcpv6 = {}
+                body_oemhp = {}
+                body_oemhp_dhcpv6 = {}
+                if nic1.dict['Oem']['Hp']['DHCPv6']['StatefulModeEnabled'] is not False:
+                    body_oemhp_dhcpv6["StatefulModeEnabled"] = False
+                    changed.append('DHCPv6-StatefulModeEnabled')
+                    changed_status = True
+                if nic1.dict['Oem']['Hp']['DHCPv6']['StatelessModeEnabled'] is not False:
+                    body_oemhp_dhcpv6["StatelessModeEnabled"] = False
+                    changed.append('DHCPv6-StatelessModeEnabled')
+                    changed_status = True
+                if nic1.dict['Oem']['Hp']['DHCPv6']['UseRapidCommit'] is not False:
+                    body_oemhp_dhcpv6["UseRapidCommit"] = False
+                    changed.append('DHCPv6-UseRapidCommit')
+                    changed_status = True
+                if nic1.dict['Oem']['Hp']['DHCPv6']['UseDNSServers'] is not False:
+                    body_oemhp_dhcpv6["UseDNSServers"] = False
+                    changed.append('DHCPv6-UseDNSServers')
+                    changed_status = True
+                if nic1.dict['Oem']['Hp']['DHCPv6']['UseDomainName'] is not False:
+                    body_oemhp_dhcpv6["UseDomainName"] = False
+                    changed.append('DHCPv6-UseDomainName')
+                    changed_status = True
+                if nic1.dict['Oem']['Hp']['DHCPv6']['UseNTPServers'] is not False:
+                    body_oemhp_dhcpv6["UseNTPServers"] = False
+                    changed.append('DHCPv6-UseNTPServers')
+                    changed_status = True
+                if changed_status:
+                    if len(body_oemhp_dhcpv6):
+                        body_oemhp['DHCPv6'] = body_oemhp_dhcpv6
+                    if len(body_oemhp):
+                        body_dhcpv6["Oem"] = {"Hp": body_oemhp}
+                    response = restobj.rest_patch(instance["href"], body_dhcpv6, optionalpassword=bios_password)
+                    message = restobj.message_handler(module, response)
+                    if response.status != 200:
+                        module.fail_json(msg="Disable DHCPv6. Return code %s: %s" % (response.status, message))
+                # IPv6
+                if nic1.dict['Oem']['Hp']['IPv6']['SLAACEnabled'] is not False:
+                    body = {"Oem": {"Hp": {"IPv6": {"SLAACEnabled": False}}}}
+                    response = restobj.rest_patch(instance["href"], body, optionalpassword=bios_password)
+                    message = restobj.message_handler(module, response)
+                    if response.status == 200:
+                        changed_status = True
+                        changed.append('IPv6-SLAACEnabled')
+                    else:
+                        module.fail_json(msg="Disable DHCPv6-SLAAC. Return code %s: %s" % (response.status, message))
+                # IPv6: iLO Client Applications use IPv6 first
+                # 35 = enabled
+                # 100 = disabled
+                if nic1.dict['IPv6AddressPolicyTable'][0]['Precedence'] != 100:
+                    body = {"IPv6AddressPolicyTable": [{"Precedence": 100}]}
+                    response = restobj.rest_patch(instance["href"], body, optionalpassword=bios_password)
+                    message = restobj.message_handler(module, response)
+                    if response.status == 200:
+                        changed_status = True
+                        changed.append('IPv6-Precedence')
+                    else:
+                        module.fail_json(msg="Disable IPv6-Precedence. Return code %s: %s" % (response.status, message))
             # IPv4
             if ipv4:
                 if ipv4_address == "DHCP":
@@ -478,69 +541,6 @@ def set_network_setting(module, restobj, ipv4, ipv4_address, ipv4_subnet_mask, i
                                 module.fail_json(msg="Set IPv4. Return code %s: %s" % (response.status, message))
             else:
                 module.fail_json(msg="IPv4 can't be disabled. IPv6 isn't fully implemented!")
-            # IPv6
-            if ipv6:
-                module.fail_json(msg="IPv6 isn't fully implemented!")
-            else:
-                # DHCPv6
-                body_dhcpv6 = {}
-                body_oemhp = {}
-                body_oemhp_dhcpv6 = {}
-                if nic1.dict['Oem']['Hp']['DHCPv6']['StatefulModeEnabled'] is not False:
-                    body_oemhp_dhcpv6["StatefulModeEnabled"] = False
-                    changed.append('DHCPv6-StatefulModeEnabled')
-                    changed_status = True
-                if nic1.dict['Oem']['Hp']['DHCPv6']['StatelessModeEnabled'] is not False:
-                    body_oemhp_dhcpv6["StatelessModeEnabled"] = False
-                    changed.append('DHCPv6-StatelessModeEnabled')
-                    changed_status = True
-                if nic1.dict['Oem']['Hp']['DHCPv6']['UseRapidCommit'] is not False:
-                    body_oemhp_dhcpv6["UseRapidCommit"] = False
-                    changed.append('DHCPv6-UseRapidCommit')
-                    changed_status = True
-                if nic1.dict['Oem']['Hp']['DHCPv6']['UseDNSServers'] is not False:
-                    body_oemhp_dhcpv6["UseDNSServers"] = False
-                    changed.append('DHCPv6-UseDNSServers')
-                    changed_status = True
-                if nic1.dict['Oem']['Hp']['DHCPv6']['UseDomainName'] is not False:
-                    body_oemhp_dhcpv6["UseDomainName"] = False
-                    changed.append('DHCPv6-UseDomainName')
-                    changed_status = True
-                if nic1.dict['Oem']['Hp']['DHCPv6']['UseNTPServers'] is not False:
-                    body_oemhp_dhcpv6["UseNTPServers"] = False
-                    changed.append('DHCPv6-UseNTPServers')
-                    changed_status = True
-                if changed_status:
-                    if len(body_oemhp_dhcpv6):
-                        body_oemhp['DHCPv6'] = body_oemhp_dhcpv6
-                    if len(body_oemhp):
-                        body_dhcpv6["Oem"] = {"Hp": body_oemhp}
-                    response = restobj.rest_patch(instance["href"], body_dhcpv6, optionalpassword=bios_password)
-                    message = restobj.message_handler(module, response)
-                    if response.status != 200:
-                        module.fail_json(msg="Disable DHCPv6. Return code %s: %s" % (response.status, message))
-                # IPv6
-                if nic1.dict['Oem']['Hp']['IPv6']['SLAACEnabled'] is not False:
-                    body = {"Oem": {"Hp": {"IPv6": {"SLAACEnabled": False}}}}
-                    response = restobj.rest_patch(instance["href"], body, optionalpassword=bios_password)
-                    message = restobj.message_handler(module, response)
-                    if response.status == 200:
-                        changed_status = True
-                        changed.append('IPv6-SLAACEnabled')
-                    else:
-                        module.fail_json(msg="Disable DHCPv6-SLAAC. Return code %s: %s" % (response.status, message))
-                # IPv6: iLO Client Applications use IPv6 first
-                # 35 = enabled
-                # 100 = disabled
-                if nic1.dict['IPv6AddressPolicyTable'][0]['Precedence'] != 100:
-                    body = {"IPv6AddressPolicyTable": [{"Precedence": 100}]}
-                    response = restobj.rest_patch(instance["href"], body, optionalpassword=bios_password)
-                    message = restobj.message_handler(module, response)
-                    if response.status == 200:
-                        changed_status = True
-                        changed.append('IPv6-Precedence')
-                    else:
-                        module.fail_json(msg="Disable IPv6-Precedence. Return code %s: %s" % (response.status, message))
             # check if iLO reset is pending
             if nic1.dict['Oem']['Hp']['ConfigurationSettings'] == 'SomePendingReset':
                 pending_reset = True
