@@ -402,7 +402,25 @@ def set_network_setting(module, restobj, ipv4, ipv4_address, ipv4_subnet_mask, i
                             changed.append('DHCPv4-UseDNSServers')
                             changed_status = True
                             dhcpv4_setting_changed = True
-                    else:
+                    # Domain name
+                    if domain == "DHCP":
+                        if nic1.dict['Oem']['Hp']['DHCPv4']['UseDomainName'] is not True:
+                            body_oemhp_dhcpv4["UseDomainName"] = True
+                            changed.append('DHCPv4-UseDomainName')
+                            changed_status = True
+                            dhcpv4_setting_changed = True
+                    # Configure DHCPv4 settings
+                    if dhcpv4_setting_changed:
+                        if len(body_oemhp_dhcpv4):
+                            body_oemhp['DHCPv4'] = body_oemhp_dhcpv4
+                        if len(body_oemhp):
+                            body_dhcpv4["Oem"] = {"Hp": body_oemhp}
+                        response = restobj.rest_patch(instance["href"], body_dhcpv4, optionalpassword=bios_password)
+                        message = restobj.message_handler(module, response)
+                        if response.status != 200:
+                            module.fail_json(msg="Set DHCPv4. Return code %s: %s" % (response.status, message))
+                    # Configure DNS servers
+                    if not (dns_server_1 == "DHCP" and dns_server_1 == "DHCP"):
                         if (dns_server_1 != "DHCP" and dns_server_1 != "DHCP"):
                             if not ((nic1.dict['Oem']['Hp']['IPv4']['DNSServers'][0] == dns_server_1) and
                                (nic1.dict['Oem']['Hp']['IPv4']['DNSServers'][1] == dns_server_2)):
@@ -416,14 +434,8 @@ def set_network_setting(module, restobj, ipv4, ipv4_address, ipv4_subnet_mask, i
                                     module.fail_json(msg="Set NameServers. Return code %s: %s" % (response.status, message))
                         else:
                             module.fail_json(msg="Both dns_server_1 and dns_server_2 need to be set to an IPv4 address!")
-                    # Domain name
-                    if domain == "DHCP":
-                        if nic1.dict['Oem']['Hp']['DHCPv4']['UseDomainName'] is not True:
-                            body_oemhp_dhcpv4["UseDomainName"] = True
-                            changed.append('DHCPv4-UseDomainName')
-                            changed_status = True
-                            dhcpv4_setting_changed = True
-                    else:
+                    # Configure Domain Name (needs to be executed after DHCPv4 configuration change)
+                    if domain != "DHCP":
                         if nic1.dict['Oem']['Hp']['DHCPv4']['UseDomainName'] is not False:
                             body_oemhp_dhcpv4["UseDomainName"] = False
                             changed.append('DHCPv4-UseDomainName')
@@ -437,16 +449,6 @@ def set_network_setting(module, restobj, ipv4, ipv4_address, ipv4_subnet_mask, i
                                 changed.append('DomainName')
                             else:
                                 module.fail_json(msg="Set DomainName. Return code %s: %s" % (response.status, message))
-                    # Configure DHCPv4 settings
-                    if dhcpv4_setting_changed:
-                        if len(body_oemhp_dhcpv4):
-                            body_oemhp['DHCPv4'] = body_oemhp_dhcpv4
-                        if len(body_oemhp):
-                            body_dhcpv4["Oem"] = {"Hp": body_oemhp}
-                        response = restobj.rest_patch(instance["href"], body_dhcpv4, optionalpassword=bios_password)
-                        message = restobj.message_handler(module, response)
-                        if response.status != 200:
-                            module.fail_json(msg="Set DHCPv4. Return code %s: %s" % (response.status, message))
                 else:
                     # Disable DHCPv4
                     body_dhcpv4 = {}
