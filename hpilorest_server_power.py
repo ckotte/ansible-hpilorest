@@ -81,11 +81,13 @@ def server_power(module, restobj, action, bios_password=None):
                 body = dict()
                 body["Action"] = "PowerButton"
                 body["PushType"] = "Press"
+                body["Target"] = "/Oem/Hp"
             # Force Power Off: Press and Hold
             elif action == 'ForcePowerOff':
                 body = dict()
                 body["Action"] = "PowerButton"
                 body["PushType"] = "PressAndHold"
+                body["Target"] = "/Oem/Hp"
             # Force System Reset: Reset
             elif action == 'ForceSystemReset':
                 body = dict()
