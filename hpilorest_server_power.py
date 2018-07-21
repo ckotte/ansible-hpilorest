@@ -7,6 +7,8 @@
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.hpilorest import RestObject
 
+import time
+
 ANSIBLE_METADATA = {'status': ['preview'],
                     'supported_by': 'community',
                     'version': '1.0'}
@@ -36,8 +38,9 @@ options:
   action:
     description:
     - The server power action.
+    - GracefulReset powers down the server via the OS and immediately powers it on again
     default=ForceSystemReset
-    choices=['GracefulPowerOff', 'ForcePowerOff', 'ForceSystemReset', 'ColdBoot']
+    choices=['GracefulReset', 'GracefulPowerOff', 'PowerOn', 'ForcePowerOff', 'ForceSystemReset', 'ColdBoot']
 requirements:
 - python-ilorest-library
 - python >= 2.7.9
@@ -75,9 +78,9 @@ def server_power(module, restobj, action, bios_password=None):
         # "InPost"
         # "InPostDiscoveryComplete"
         # "FinishedPost"
-        if system.dict['Oem']['Hp']['PostState'] == 'FinishedPost':
-            # Graceful Power Off: Momentary Press
-            if action == 'GracefulPowerOff':
+        if system.dict['Oem']['Hp']['PostState'] == 'FinishedPost' or system.dict['Oem']['Hp']['PostState'] == 'PowerOff':
+            # Graceful Power Off / Power On: Momentary Press
+            if action == 'GracefulPowerOff' or action == 'PowerOn' or action == 'GracefulReset':
                 body = dict()
                 body["Action"] = "PowerButton"
                 body["PushType"] = "Press"
@@ -104,9 +107,24 @@ def server_power(module, restobj, action, bios_password=None):
                 body = dict()
                 body["Action"] = "SystemReset"
                 body["ResetType"] = "ColdBoot"
+                body["Target"] = "/Oem/Hp"
             response = restobj.rest_post(instance["href"], body)
             message = restobj.message_handler(module, response)
             if response.status == 200:
+                if action == 'GracefulReset':
+                    while True:
+                        system = restobj.rest_get(instance["href"])
+                        if system.dict['Oem']['Hp']['PostState'] == 'PowerOff':
+                            break
+                        time.sleep(5)
+                    body = dict()
+                    body["Action"] = "PowerButton"
+                    body["PushType"] = "Press"
+                    body["Target"] = "/Oem/Hp"
+                    response = restobj.rest_post(instance["href"], body)
+                    message = restobj.message_handler(module, response)
+                    if response.status == 200:
+                        module.exit_json(changed=True, msg="Server gracefully reset: %s" % message)
                 module.exit_json(changed=True, msg="Server power state changed: %s" % message)
             else:
                 module.fail_json(msg='Return code %s: %s' % (response.status, message))
@@ -121,7 +139,7 @@ def main():
             host=dict(required=True, type='str'),
             login=dict(default='Administrator', type='str'),
             password=dict(default='admin', type='str', no_log=True),
-            action=dict(default='ForceSystemReset', choices=['GracefulPowerOff', 'ForcePowerOff', 'ForceSystemReset', 'ColdBoot'])
+            action=dict(default='ForceSystemReset', choices=['GracefulReset', 'GracefulPowerOff', 'PowerOn', 'ForcePowerOff', 'ForceSystemReset', 'ColdBoot'])
         ),
         supports_check_mode=True
     )
