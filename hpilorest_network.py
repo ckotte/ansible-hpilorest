@@ -282,6 +282,7 @@ def set_network_setting(module, restobj, ipv4, ipv4_address, ipv4_subnet_mask, i
     changed = []
     pending_reset = False
     changed_status = False
+    dhcpv6_setting_changed = False
     dhcpv4_setting_changed = False
 
     instances = restobj.search_for_type(module, "ManagerNetworkService.")
@@ -317,27 +318,33 @@ def set_network_setting(module, restobj, ipv4, ipv4_address, ipv4_subnet_mask, i
                     body_oemhp_dhcpv6["StatefulModeEnabled"] = False
                     changed.append('DHCPv6-StatefulModeEnabled')
                     changed_status = True
+                    dhcpv6_setting_changed = True
                 if nic1.dict['Oem']['Hp']['DHCPv6']['StatelessModeEnabled'] is not False:
                     body_oemhp_dhcpv6["StatelessModeEnabled"] = False
                     changed.append('DHCPv6-StatelessModeEnabled')
                     changed_status = True
+                    dhcpv6_setting_changed = True
                 if nic1.dict['Oem']['Hp']['DHCPv6']['UseRapidCommit'] is not False:
                     body_oemhp_dhcpv6["UseRapidCommit"] = False
                     changed.append('DHCPv6-UseRapidCommit')
                     changed_status = True
+                    dhcpv6_setting_changed = True
                 if nic1.dict['Oem']['Hp']['DHCPv6']['UseDNSServers'] is not False:
                     body_oemhp_dhcpv6["UseDNSServers"] = False
                     changed.append('DHCPv6-UseDNSServers')
                     changed_status = True
+                    dhcpv6_setting_changed = True
                 if nic1.dict['Oem']['Hp']['DHCPv6']['UseDomainName'] is not False:
                     body_oemhp_dhcpv6["UseDomainName"] = False
                     changed.append('DHCPv6-UseDomainName')
                     changed_status = True
+                    dhcpv6_setting_changed = True
                 if nic1.dict['Oem']['Hp']['DHCPv6']['UseNTPServers'] is not False:
                     body_oemhp_dhcpv6["UseNTPServers"] = False
                     changed.append('DHCPv6-UseNTPServers')
                     changed_status = True
-                if changed_status:
+                    dhcpv6_setting_changed = True
+                if dhcpv6_setting_changed:
                     if len(body_oemhp_dhcpv6):
                         body_oemhp['DHCPv6'] = body_oemhp_dhcpv6
                     if len(body_oemhp):
