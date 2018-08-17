@@ -41,8 +41,9 @@ options:
   ipv4_address:
     description:
     - The IPv4 address of the HPE iLO interface.
+    - The fixed IPv4 address, subnet mask, and gateway won't be checked or changed if 'use_existing' is specified
     default: DHCP
-    choices=['DHCP', '<IPv4 address>']
+    choices=['DHCP', 'use_existing', '<IPv4 address>']
   ipv4_subnet_mask:
     description:
     - The IPv4 subnet mask of the HPE iLO interface.
@@ -194,16 +195,17 @@ def check_network_setting(module, restobj, ipv4, ipv4_address, ipv4_subnet_mask,
                     if nic1.dict['Oem']['Hp']['DHCPv4']['UseWINSServers'] is not False:
                         would_be_changed.append('DHCPv4-UseWINSServers')
                         changed_status = True
-                    # Enable IPv4 address, subnet mask, and gateway
-                    if nic1.dict['IPv4Addresses'][0]['Address'] != ipv4_address:
-                        would_be_changed.append('IPv4-Address')
-                        changed_status = True
-                    if nic1.dict['IPv4Addresses'][0]['SubnetMask'] != ipv4_subnet_mask:
-                        would_be_changed.append('IPv4-SubnetMask')
-                        changed_status = True
-                    if nic1.dict['IPv4Addresses'][0]['Gateway'] != ipv4_gateway:
-                        would_be_changed.append('IPv4-Gateway')
-                        changed_status = True
+                    if ipv4_address != "use_existing":
+                        # Enable IPv4 address, subnet mask, and gateway
+                        if nic1.dict['IPv4Addresses'][0]['Address'] != ipv4_address:
+                            would_be_changed.append('IPv4-Address')
+                            changed_status = True
+                        if nic1.dict['IPv4Addresses'][0]['SubnetMask'] != ipv4_subnet_mask:
+                            would_be_changed.append('IPv4-SubnetMask')
+                            changed_status = True
+                        if nic1.dict['IPv4Addresses'][0]['Gateway'] != ipv4_gateway:
+                            would_be_changed.append('IPv4-Gateway')
+                            changed_status = True
                     # Disable DHCPv4 DNS servers
                     if (dns_server_1 != "DHCP" and dns_server_1 != "DHCP"):
                         if not ((nic1.dict['Oem']['Hp']['IPv4']['DNSServers'][0] == dns_server_1) and
@@ -481,24 +483,25 @@ def set_network_setting(module, restobj, ipv4, ipv4_address, ipv4_subnet_mask, i
                         changed.append('DHCPv4-UseWINSServers')
                         changed_status = True
                         dhcpv4_setting_changed = True
-                    # Enable IPv4 address, subnet mask, and gateway
-                    body_ipv4 = {}
-                    body_ipv4addresses = {}
-                    if nic1.dict['IPv4Addresses'][0]['Address'] != ipv4_address:
-                        body_ipv4addresses["Address"] = False
-                        changed.append('IPv4-Address')
-                        changed_status = True
-                        dhcpv4_setting_changed = True
-                    if nic1.dict['IPv4Addresses'][0]['SubnetMask'] != ipv4_subnet_mask:
-                        body_ipv4addresses["SubnetMask"] = False
-                        changed.append('IPv4-SubnetMask')
-                        changed_status = True
-                        dhcpv4_setting_changed = True
-                    if nic1.dict['IPv4Addresses'][0]['Gateway'] != ipv4_gateway:
-                        body_ipv4addresses["Gateway"] = False
-                        changed.append('IPv4-Gateway')
-                        changed_status = True
-                        dhcpv4_setting_changed = True
+                    if ipv4_address != "use_existing":
+                        # Enable IPv4 address, subnet mask, and gateway
+                        body_ipv4 = {}
+                        body_ipv4addresses = {}
+                        if nic1.dict['IPv4Addresses'][0]['Address'] != ipv4_address:
+                            body_ipv4addresses["Address"] = False
+                            changed.append('IPv4-Address')
+                            changed_status = True
+                            dhcpv4_setting_changed = True
+                        if nic1.dict['IPv4Addresses'][0]['SubnetMask'] != ipv4_subnet_mask:
+                            body_ipv4addresses["SubnetMask"] = False
+                            changed.append('IPv4-SubnetMask')
+                            changed_status = True
+                            dhcpv4_setting_changed = True
+                        if nic1.dict['IPv4Addresses'][0]['Gateway'] != ipv4_gateway:
+                            body_ipv4addresses["Gateway"] = False
+                            changed.append('IPv4-Gateway')
+                            changed_status = True
+                            dhcpv4_setting_changed = True
                     # Disable DHCPv4 DNS servers
                     if (dns_server_1 != "DHCP" and dns_server_1 != "DHCP"):
                         if not ((nic1.dict['Oem']['Hp']['IPv4']['DNSServers'][0] == dns_server_1) and
