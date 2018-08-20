@@ -96,64 +96,12 @@ RETURN = '''
 '''
 
 
-def check_user_account(module, restobj, new_iLO_loginname, new_iLO_username, new_iLO_password, update_password, irc, cfg, virtual_media, usercfg, vpr, state, bios_password=None):
-    """Inform the user what would change if the module were run"""
-
-    would_be_changed = []
-
-    instances = restobj.search_for_type(module, "AccountService.")
-
-    for instance in instances:
-        response = restobj.rest_get(instance["href"])
-        accounts = restobj.rest_get(response.dict["links"]["Accounts"]["href"])
-
-        account_found = False
-        account_changed = False
-        for account in accounts.dict["Items"]:
-            if account["UserName"] == new_iLO_loginname:
-                account_found = True
-                if account['Oem']['Hp']['LoginName'] != new_iLO_loginname:
-                    would_be_changed.append('LoginName')
-                    account_changed = True
-                if account['Oem']['Hp']['Privileges']['RemoteConsolePriv'] != irc:
-                    would_be_changed.append('RemoteConsolePriv')
-                    account_changed = True
-                if account['Oem']['Hp']['Privileges']['iLOConfigPriv'] != cfg:
-                    would_be_changed.append('iLOConfigPriv')
-                    account_changed = True
-                if account['Oem']['Hp']['Privileges']['VirtualMediaPriv'] != virtual_media:
-                    would_be_changed.append('VirtualMediaPriv')
-                    account_changed = True
-                if account['Oem']['Hp']['Privileges']['UserConfigPriv'] != usercfg:
-                    would_be_changed.append('UserConfigPriv')
-                    account_changed = True
-                if account['Oem']['Hp']['Privileges']['VirtualPowerAndResetPriv'] != vpr:
-                    would_be_changed.append('VirtualPowerAndResetPriv')
-                    account_changed = True
-
-        if account_found:
-            if account_changed:
-                changed_status = False
-                message = 'User %s already created, but ' % new_iLO_loginname
-                if len(would_be_changed) > 2:
-                    message = message + ', '.join(would_be_changed[:-1]) + ', and ' + str(would_be_changed[-1]) + ' would be changed'
-                elif len(would_be_changed) == 2:
-                    message = message + ' and '.join(would_be_changed) + ' would be changed'
-                elif len(would_be_changed) == 1:
-                    message = message + would_be_changed[0] + ' would be changed'
-            else:
-                changed_status = False
-                message = 'User %s already created' % new_iLO_loginname
-        else:
-            changed_status = True
-            message = 'User %s would be created' % new_iLO_loginname
-
-        module.exit_json(changed=changed_status, msg=message)
-
-
-def configure_user_account(module, restobj, new_iLO_loginname, new_iLO_username, new_iLO_password, update_password, irc, cfg, virtual_media, usercfg, vpr, state, bios_password=None):
+def configure_user_account(module, restobj, new_iLO_loginname, new_iLO_username, new_iLO_password, update_password, irc, cfg, virtual_media, usercfg,
+                           vpr, state, bios_password=None):
     """Create or configure an iLO User Account"""
     instances = restobj.search_for_type(module, "AccountService.")
+
+    changed = []
 
     for instance in instances:
         accounts_href = restobj.rest_get(instance["href"])
@@ -173,76 +121,109 @@ def configure_user_account(module, restobj, new_iLO_loginname, new_iLO_username,
                     # update password if update_password is True
                     if update_password:
                         body["Password"] = new_iLO_password
+                        changed.append('Password')
                         account_changed = True
 
                     # update login name if different
                     if account['Oem']['Hp']['LoginName'] != new_iLO_loginname:
                         body_oemhp["LoginName"] = new_iLO_username
+                        changed.append('LoginName')
                         account_changed = True
 
                     # update priviledges if different
                     if account['Oem']['Hp']['Privileges']['RemoteConsolePriv'] != irc:
                         body_oemhp_privs["RemoteConsolePriv"] = irc
+                        changed.append('RemoteConsolePriv')
                         account_changed = True
                     if account['Oem']['Hp']['Privileges']['iLOConfigPriv'] != cfg:
                         body_oemhp_privs["iLOConfigPriv"] = cfg
+                        changed.append('iLOConfigPriv')
                         account_changed = True
                     if account['Oem']['Hp']['Privileges']['VirtualMediaPriv'] != virtual_media:
                         body_oemhp_privs["VirtualMediaPriv"] = virtual_media
+                        changed.append('VirtualMediaPriv')
                         account_changed = True
                     if account['Oem']['Hp']['Privileges']['UserConfigPriv'] != usercfg:
                         body_oemhp_privs["UserConfigPriv"] = usercfg
+                        changed.append('UserConfigPriv')
                         account_changed = True
                     if account['Oem']['Hp']['Privileges']['VirtualPowerAndResetPriv'] != vpr:
                         body_oemhp_privs["VirtualPowerAndResetPriv"] = vpr
+                        changed.append('VirtualPowerAndResetPriv')
                         account_changed = True
 
                     # component assembly
                     if account_changed:
-                        if len(body_oemhp_privs):
-                            body_oemhp["Privileges"] = body_oemhp_privs
-                        if len(body_oemhp):
-                            body["Oem"] = {"Hp": body_oemhp}
-
-                        response = restobj.rest_patch(account["links"]["self"]["href"], body, optionalpassword=bios_password)
-                        message = restobj.message_handler(module, response)
-                        if response.status == 200:
+                        if module.check_mode:
                             changed_status = True
-                            message = 'User %s modified: %s' % (new_iLO_loginname, message)
                         else:
-                            module.fail_json(msg="Return code %s: %s" % (response.status, message))
+                            if len(body_oemhp_privs):
+                                body_oemhp["Privileges"] = body_oemhp_privs
+                            if len(body_oemhp):
+                                body["Oem"] = {"Hp": body_oemhp}
+
+                            response = restobj.rest_patch(account["links"]["self"]["href"], body, optionalpassword=bios_password)
+                            message = restobj.message_handler(module, response)
+                            if response.status == 200:
+                                changed_status = True
+                            else:
+                                module.fail_json(msg="Return code %s: %s" % (response.status, message))
                     else:
                         changed_status = False
                         message = 'User %s not changed' % new_iLO_loginname
 
+                    if changed_status:
+                        if module.check_mode:
+                            changed_message = ' would be changed.'
+                        else:
+                            changed_message = ' changed.'
+                        if len(changed) > 2:
+                            message = ', '.join(changed[:-1]) + ', and ' + str(changed[-1]) + changed_message
+                        elif len(changed) == 2:
+                            message = ' and '.join(changed) + changed_message
+                        elif len(changed) == 1:
+                            message = changed[0] + changed_message
+                        message = ('User %s already created, but ' + message) % new_iLO_loginname
+                    else:
+                        message = 'User %s already created an all settings are already configured' % new_iLO_loginname
+
                     module.exit_json(changed=changed_status, msg=message)
                 # Delete account
                 else:
-                    response = restobj.rest_delete(account["links"]["self"]["href"])
-                    message = restobj.message_handler(module, response)
-                    if response.status == 200:
-                        module.exit_json(changed=True, msg='User %s deleted: %s' % (new_iLO_loginname, message))
+                    if module.check_mode:
+                        module.exit_json(changed=True, msg='User %s would be deleted.' % new_iLO_loginname)
                     else:
-                        module.fail_json(msg="Return code %s: %s" % (response.status, message))
+                        response = restobj.rest_delete(account["links"]["self"]["href"])
+                        message = restobj.message_handler(module, response)
+                        if response.status == 200:
+                            module.exit_json(changed=True, msg='User %s deleted.' % new_iLO_loginname)
+                        else:
+                            module.fail_json(msg="Return code %s: %s" % (response.status, message))
 
         if not account_found:
             # Create new account
             if state == 'present':
-                body = {'UserName': new_iLO_loginname, 'Password': new_iLO_password, 'Oem': {}}
-                body['Oem']['Hp'] = {}
-                body['Oem']['Hp']['LoginName'] = new_iLO_username
-                body['Oem']['Hp']['Privileges'] = {}
-                body['Oem']['Hp']['Privileges']['RemoteConsolePriv'] = irc
-                body['Oem']['Hp']['Privileges']['iLOConfigPriv'] = cfg
-                body['Oem']['Hp']['Privileges']['VirtualMediaPriv'] = virtual_media
-                body['Oem']['Hp']['Privileges']['UserConfigPriv'] = usercfg
-                body['Oem']['Hp']['Privileges']['VirtualPowerAndResetPriv'] = vpr
-                response = restobj.rest_post(accounts_href.dict["links"]["Accounts"]["href"], body)
-                message = restobj.message_handler(module, response)
-                if response.status == 201:
-                    module.exit_json(changed=True, msg='User created: %s' % message)
+                if module.check_mode:
+                    changed_status = True
+                    message = 'User %s would be created' % new_iLO_loginname
                 else:
-                    module.fail_json(msg="Return code %s: %s" % (response.status, message))
+                    body = {'UserName': new_iLO_loginname, 'Password': new_iLO_password, 'Oem': {}}
+                    body['Oem']['Hp'] = {}
+                    body['Oem']['Hp']['LoginName'] = new_iLO_username
+                    body['Oem']['Hp']['Privileges'] = {}
+                    body['Oem']['Hp']['Privileges']['RemoteConsolePriv'] = irc
+                    body['Oem']['Hp']['Privileges']['iLOConfigPriv'] = cfg
+                    body['Oem']['Hp']['Privileges']['VirtualMediaPriv'] = virtual_media
+                    body['Oem']['Hp']['Privileges']['UserConfigPriv'] = usercfg
+                    body['Oem']['Hp']['Privileges']['VirtualPowerAndResetPriv'] = vpr
+                    response = restobj.rest_post(accounts_href.dict["links"]["Accounts"]["href"], body)
+                    message = restobj.message_handler(module, response)
+                    if response.status == 201:
+                        changed_status = True
+                        message = 'User %s created' % new_iLO_loginname
+                    else:
+                        module.fail_json(msg="Return code %s: %s" % (response.status, message))
+                    module.exit_json(changed=changed_status, msg=message)
             # Do nothing
             else:
                 module.exit_json(changed=False, msg='User %s not present' % new_iLO_loginname)
@@ -286,9 +267,6 @@ def main():
 
     # Create a REST object
     REST_OBJ = RestObject(module, ilo_url, ilo_login, ilo_password)
-
-    if module.check_mode:
-        check_user_account(module, REST_OBJ, login_name, user_name, user_password, update_password, irc, cfg, virtual_media, usercfg, vpr, state)
 
     configure_user_account(module, REST_OBJ, login_name, user_name, user_password, update_password, irc, cfg, virtual_media, usercfg, vpr, state)
 
