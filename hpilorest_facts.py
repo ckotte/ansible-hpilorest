@@ -177,6 +177,13 @@ hw_ilo_firmware_date:
     returned: always
     type: string
     sample: Sep 23 2016
+hw_ilo_mac_address:
+    description: iLO Dedicated Network Port MAC address
+    returned: always
+    type: dictionary
+    sample:
+      - macaddress: 00:11:22:33:44:55
+        macaddress_dash: 00-11-22-33-44-55
 hw_ilo_ipv4_address:
     description: Configured IPv4 address
     returned: always
@@ -266,6 +273,10 @@ def gather_server_facts(module, restobj):
         # NIC1: "Dedicated Network Port"
         if instance["href"] == '/rest/v1/Managers/1/EthernetInterfaces/1':
             nic1 = restobj.rest_get(instance["href"])
+            facts['hw_ilo_mac_address'] = {
+                'macaddress': nic1.dict['MacAddress'],
+                'macaddress_dash': nic1.dict['MacAddress'].replace(':', '-')
+            }
             facts['hw_ilo_ipv4_address'] = nic1.dict['IPv4Addresses'][0]['Address']
             facts['hw_ilo_ipv4_subnet_mask'] = nic1.dict['IPv4Addresses'][0]['SubnetMask']
             facts['hw_ilo_ipv4_gateway'] = nic1.dict['IPv4Addresses'][0]['Gateway']
